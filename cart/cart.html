@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Espresso Edit – Shopping Cart</title>
+  <link rel="stylesheet" href="cart.css" />
+</head>
+<body>
+  <header>
+    <h1>Espresso Edit</h1>
+    <span class="badge" id="cart-count" aria-label="Items in cart">Cart: 0</span>
+  </header>
+
+  <main>
+    <section aria-labelledby="products-heading">
+      <h2 id="products-heading">Products</h2>
+      <!-- these are just sample products for our Sprint 1 prototype. gonna replace with the real
+           product list once the product catalogue story is built. -->
+      <div id="product-list" class="product-list"></div>
+    </section>
+
+    <section aria-labelledby="cart-heading" class="cart">
+      <h2 id="cart-heading">Your Cart</h2>
+      <p id="empty-message" class="empty">Your cart is empty.</p>
+      <table id="cart-table" hidden>
+        <thead>
+          <tr>
+            <th scope="col">Product</th>
+            <th scope="col">Price</th>
+            <th scope="col">Qty</th>
+            <th scope="col">Line total</th>
+            <th scope="col"><span class="visually-hidden">Remove</span></th>
+          </tr>
+        </thead>
+        <tbody id="cart-body"></tbody>
+      </table>
+      <p class="total">Total: <strong id="cart-total">$0.00</strong></p>
+      <button id="clear-cart" class="secondary" type="button">Clear cart</button>
+    </section>
+  </main>
+
+  <script src="cart.js"></script>
+  <script>
+    const PRODUCTS = [
+      { id: "esp-1", name: "Classic Espresso Beans (340 g)", priceCents: 1899 },
+      { id: "esp-2", name: "Dark Roast Blend (340 g)", priceCents: 1749 },
+      { id: "esp-3", name: "Decaf Espresso (340 g)", priceCents: 1699 },
+      { id: "acc-1", name: "Ceramic Espresso Cup", priceCents: 1250 },
+      { id: "acc-2", name: "Milk Frothing Pitcher", priceCents: 2400 },
+    ];
+
+    const STORAGE_KEY = "espresso-edit-cart";
+
+    // keep the cart after a page refresh (until checkout is built).
+    function loadCart() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        return new Cart(Array.isArray(saved) ? saved : []);
+      } catch (e) {
+        return new Cart();
+      }
+    }
+    function saveCart() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cart.getItems()));
+      } catch (e) { /* storage unavailable: cart still works for this visit */ }
+    }
+
+    const cart = loadCart();
+
+    function renderProducts() {
+      const list = document.getElementById("product-list");
+      list.innerHTML = "";
+      PRODUCTS.forEach((p) => {
+        const card = document.createElement("div");
+        card.className = "product";
+        card.innerHTML = `
+          <span class="name"></span>
+          <span class="price">${formatPrice(p.priceCents)}</span>
+          <button type="button">Add to cart</button>`;
+        card.querySelector(".name").textContent = p.name;
+        card.querySelector("button").addEventListener("click", () => {
+          cart.addItem(p);
+          update();
+        });
+        list.appendChild(card);
+      });
+    }
+
+    function renderCart() {
+      const body = document.getElementById("cart-body");
+      body.innerHTML = "";
+      cart.getItems().forEach((item) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td class="name"></td>
+          <td>${formatPrice(item.priceCents)}</td>
+          <td><input type="number" min="0" step="1" value="${item.quantity}"
+                     aria-label="Quantity" /></td>
+          <td>${formatPrice(cart.getLineTotal(item.id))}</td>
+          <td><button type="button" class="remove">Remove</button></td>`;
+        row.querySelector(".name").textContent = item.name;
+        row.querySelector("input").addEventListener("change", (e) => {
+          const qty = parseInt(e.target.value, 10);
+          cart.updateQuantity(item.id, Number.isNaN(qty) ? 0 : qty);
+          update();
+        });
+        row.querySelector(".remove").addEventListener("click", () => {
+          cart.removeItem(item.id);
+          update();
+        });
+        body.appendChild(row);
+      });
+
+      const empty = cart.isEmpty();
+      document.getElementById("cart-table").hidden = empty;
+      document.getElementById("empty-message").hidden = !empty;
+      document.getElementById("cart-total").textContent = formatPrice(cart.getTotal());
+      document.getElementById("cart-count").textContent = "Cart: " + cart.getItemCount();
+    }
+
+    function update() {
+      saveCart();
+      renderCart();
+    }
+
+    document.getElementById("clear-cart").addEventListener("click", () => {
+      cart.clear();
+      update();
+    });
+
+    renderProducts();
+    renderCart();
+  </script>
+</body>
+</html>
